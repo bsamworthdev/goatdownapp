@@ -4,16 +4,19 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Word;
+use App\Models\Conundrum;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class WordController extends Controller
 {
     //
     public function fetch(Request $request){
-        ini_set('max_execution_time', 1800);
+        // ini_set('max_execution_time', 180);
         $action = $request->action;
         if ($action == 'getConundrums'){
-            //$this->populateLetters();
+            //$this->populateConundrums();
+            // $this->populateLetters();
             return $this->getConundrums();
         }
     }
@@ -23,16 +26,32 @@ class WordController extends Controller
         $action = $request->action;
         if ($action == 'populateLetters'){
             $this->populateLetters();
+        }elseif ($action == 'populateConundrums'){
+            $this->populateConundrums();
         }
     }
 
     public function getConundrums(){
+        // $conundrums = Conundrum::groupBy('word_id')
+        // ->get();
+        $conundrums = DB::table('words')
+         ->select(['words.word', 'words.id', DB::raw('IFNULL(group_concat(conundrums.conundrum),\'\') as conundrums')])
+         ->leftJoin('conundrums','words.id','=','conundrums.word_id')
+         ->whereRaw('LENGTH(words.word)=9')
+         ->groupBy('words.id')
+         ->get();
+//  Log::debug($conundrums);
+
+        return json_encode($conundrums);
+    }
+
+    public function populateConundrums(){
         $words = $this->getAllNineLetterWords();
         // $words = $this->removeWordsWithAnagrams($words);
         $words = $this->addWildCardedWords($words);
         $words = $this->removeDuplicatedWildcardWords($words);
         
-        //Sort alphabeticlly
+        //Sort alphabetically
         // $words = collect($words);
         // $sorted_words = $words->sortBy('word', true);
         // $words = $words->sortBy(function ($item) {
@@ -42,7 +61,18 @@ class WordController extends Controller
 
 // Log::Debug($sorted_words);
 
-        return json_encode($words);
+        // return json_encode($words);
+
+        foreach ($words as $word){
+            foreach ($word->wildcarded_words as $wildcardedWord){
+                $conundrum = new Conundrum;
+                $conundrum->word_id = $word->id;
+                $conundrum->conundrum = $wildcardedWord;
+                $conundrum->save();
+            }
+        }
+
+
     }
 
     public function removeDuplicatedWildcardWords($words){
@@ -123,13 +153,13 @@ class WordController extends Controller
     public function getAllNineLetterWords(){
         return Word::whereRaw('LENGTH(word) = 9')
         ->where('letters', 'not like', "%'%")
-        ->where('letters', 'not like', "%.%")
-        ->where('letters', 'not like', "%-%")
-        ->where('letters', 'not like', "% %")
-        ->where('letters', 'not like', "%/%")
+        // ->where('letters', 'not like', "%.%")
+        // ->where('letters', 'not like', "%-%")
+        // ->where('letters', 'not like', "% %")
+        // ->where('letters', 'not like', "%/%")
         ->distinct('letters')
         ->orderBy('word')
-        ->get(['word','letters']);
+        ->get(['id','word','letters']);
     }
 
     public function populateLetters(){

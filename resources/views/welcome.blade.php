@@ -42,10 +42,11 @@
                     var contentHTML = '';
                     $.each(obj, function(key,value) {
                         contentHTML += '<b>' + value.word + '</b>: ';
-                        if (value.wildcarded_words !== undefined){
-                            var conundrums = value.wildcarded_words.join(', ');
-                            contentHTML += value.wildcarded_words.length + ' (' + conundrums + ')' ;
-                            totalWildcards += value.wildcarded_words.length;
+                        if (value.conundrums !== undefined){
+                            var count = (value.conundrums == '' ? 0 : value.conundrums.split(',').length);
+                            // var conundrums = value.conundrums.join(', ');
+                            contentHTML += count + ' (' + value.conundrums + ')' ;
+                            totalWildcards += count;
                         }
                         totalWords++;
                         contentHTML += '<br>';
