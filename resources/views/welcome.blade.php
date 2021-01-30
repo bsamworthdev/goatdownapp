@@ -37,14 +37,24 @@
                 })
                 .done(function(resp) {
                     var obj = jQuery.parseJSON(resp);
-                    var str = '<h1>Goatdown Conundrums (' + obj.length + ')</h1>';
-                    var total = 0;
+                    var totalWildcards = 0;
+                    var totalWords = 0;
+                    var contentHTML = '';
                     $.each(obj, function(key,value) {
-                        var conundrums = value.wildcarded_words.join(', ');
-                        str += '<b>' + value.word + '</b>: ' + value.wildcarded_words.length + ' (' + conundrums + ')<br>' ;
-                        total += value.wildcarded_words.length;
+                        contentHTML += '<b>' + value.word + '</b>: ';
+                        if (value.wildcarded_words !== undefined){
+                            var conundrums = value.wildcarded_words.join(', ');
+                            contentHTML += value.wildcarded_words.length + ' (' + conundrums + ')' ;
+                            totalWildcards += value.wildcarded_words.length;
+                        }
+                        totalWords++;
+                        contentHTML += '<br>';
+                        
                     }); 
-                    str +='<h3>total:' + total + '</h3>';
+
+                    var str = '<h3>Goatdown Conundrums (' + totalWords + ')</h3>' +
+                        '<h4>Possible Combinations:' + totalWildcards + '</h4>' +
+                        contentHTML;
 
                     $('.wordsContainer').html(str);
                     $('#btnGetConundrums').hide();

@@ -4,13 +4,16 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Word;
+use Illuminate\Support\Facades\Log;
 
 class WordController extends Controller
 {
     //
     public function fetch(Request $request){
+        ini_set('max_execution_time', 1800);
         $action = $request->action;
         if ($action == 'getConundrums'){
+            //$this->populateLetters();
             return $this->getConundrums();
         }
     }
@@ -25,9 +28,19 @@ class WordController extends Controller
 
     public function getConundrums(){
         $words = $this->getAllNineLetterWords();
-        $words = $this->removeWordsWithAnagrams($words);
+        // $words = $this->removeWordsWithAnagrams($words);
         $words = $this->addWildCardedWords($words);
         $words = $this->removeDuplicatedWildcardWords($words);
+        
+        //Sort alphabeticlly
+        // $words = collect($words);
+        // $sorted_words = $words->sortBy('word', true);
+        // $words = $words->sortBy(function ($item) {
+        //     return $item->word;
+        // });
+        // $sorted_words = $sorted_words->all();
+
+// Log::Debug($sorted_words);
 
         return json_encode($words);
     }
@@ -36,16 +49,23 @@ class WordController extends Controller
         //Create master list
         $wildcarded_letters_master = [];
         foreach ($words as $word){
+            $wildcarded_letters_this_word = [];
             foreach ($word->wildcarded_letters as $wildcarded_letters){
-                $wildcarded_letters_master[] = $wildcarded_letters;
+                if (!in_array($wildcarded_letters, $wildcarded_letters_this_word)){
+                    $wildcarded_letters_this_word[] = $wildcarded_letters;
+                }
             }
+            $wildcarded_letters_master = array_merge($wildcarded_letters_master, $wildcarded_letters_this_word);
         }
+
+        // Log::Debug($wildcarded_letters_master);
 
         //Sort master list alphabetically
         sort($wildcarded_letters_master);
 
         //Find duplicates in masterlist
         $prev='';
+        $duplicate_letters = [];
         foreach ($wildcarded_letters_master as $wildcarded_letters){
             if ($wildcarded_letters==$prev){
                 $duplicate_letters[] = $wildcarded_letters;
@@ -75,12 +95,12 @@ class WordController extends Controller
             $wildcarded_letters = [];
              for($i=0; $i<9; $i++)
              {
-                 $wildcarded_word = substr_replace($word->word,'?',$i,1);
+                 $wildcarded_word = substr_replace(strtolower($word->word),'?',$i,1);
                  $wildcarded_words[] = $wildcarded_word;
                  $wildcarded_letters[] = $this->breakWordIntoLetters($wildcarded_word);
              }
              $word->wildcarded_words = $wildcarded_words;
-             $word->wildcarded_letters= $wildcarded_letters;
+             $word->wildcarded_letters = $wildcarded_letters;
          }
          return $words;
     }
@@ -103,16 +123,20 @@ class WordController extends Controller
     public function getAllNineLetterWords(){
         return Word::whereRaw('LENGTH(word) = 9')
         ->where('letters', 'not like', "%'%")
+        ->where('letters', 'not like', "%.%")
         ->where('letters', 'not like', "%-%")
         ->where('letters', 'not like', "% %")
-        ->orderBy('letters')
-        ->get();
+        ->where('letters', 'not like', "%/%")
+        ->distinct('letters')
+        ->orderBy('word')
+        ->get(['word','letters']);
     }
 
     public function populateLetters(){
-        $words = Word::get(['id', 'word']);
+        $words = Word::whereNull('letters')
+        ->get(['id', 'word']);
         foreach($words as $word){
-            $word->letters = $this->breakWordIntoLetters($word->word);
+            $word->letters = $this->breakWordIntoLetters(strtolower($word->word));
             $word->save();
         }
     }
